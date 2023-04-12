@@ -27,11 +27,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import javax.sql.DataSource;
 
 @Configuration
-//@EnableBatchProcessing
 @Data
 public class SpringBatchConfiguration {
-//    private JobRepository jobRepository;
-//    private PlatformTransactionManager transactionManager;
 
     @StepScope
     @Bean
