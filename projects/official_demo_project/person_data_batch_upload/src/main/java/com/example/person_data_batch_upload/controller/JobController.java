@@ -1,47 +1,48 @@
 package com.example.person_data_batch_upload.controller;
 
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.JobParametersInvalidException;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
 import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.repository.JobRestartException;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 
 @RestController
 @RequestMapping("/jobs")
 public class JobController {
     private final JobLauncher jobLauncher;
     private final Job importPersonJob;
+    private final Job updatePersonJob;
 
-    public JobController(JobLauncher jobLauncher, Job importPersonJob) {
+    public JobController(JobLauncher jobLauncher, Job importPersonJob, Job updatePersonJob) {
         this.jobLauncher = jobLauncher;
         this.importPersonJob = importPersonJob;
+        this.updatePersonJob = updatePersonJob;
     }
 
     @PostMapping("/start")
-    public void startJob() throws IOException, JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
-        String fakeFile = """
-                Fake,Doe
-                Bake,Doe
-                Justin,Doe
-                Jane,Doe
-                John,Doe
-                """;
+    public ResponseEntity<String> importPersons() throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
+        JobParameters jobParameters = new JobParametersBuilder()
+                .addString("jobName", "importUserJob")
+                .addLong("startsAt", System.currentTimeMillis())
+                .toJobParameters();
+        jobLauncher.run(importPersonJob, jobParameters);
+        return ResponseEntity.ok("Import job started");
+    }
 
-        File temp = File.createTempFile("fake-file", ".tmp");
-        Files.copy(new ByteArrayInputStream(fakeFile.getBytes()), temp.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        jobLauncher.run(importPersonJob,
-                new JobParametersBuilder().addString("inputFilePath", temp.getAbsolutePath()
-                ).toJobParameters());
+    @PostMapping("/update")
+    public ResponseEntity<String> updatePersons() throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
+        JobParameters jobParameters = new JobParametersBuilder()
+                .addString("jobName", "updateUserJob")
+                .addLong("startsAt", System.currentTimeMillis())
+                .toJobParameters();
+        jobLauncher.run(updatePersonJob, jobParameters);
+        return ResponseEntity.ok("Update job started");
     }
 }

@@ -38,8 +38,10 @@ public class SpringBatchConfiguration {
     public JdbcCursorItemReader<Person> reader() {
         JdbcCursorItemReader<Person> reader = new JdbcCursorItemReader<>();
         reader.setDataSource(dataSource);
-        reader.setSql("SELECT first_name, last_name from service_budget");
+        reader.setName("personItemReader");
+        reader.setSql("SELECT first_name, last_name, service_id, shop_id from service_budget");
         reader.setRowMapper(rowMapper);
+        reader.setFetchSize(chunkSize);
         return reader;
     }
 
@@ -52,15 +54,15 @@ public class SpringBatchConfiguration {
     public JdbcBatchItemWriter<Person> writer() {
         return new JdbcBatchItemWriterBuilder<Person>()
                 .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
-                .sql("INSERT INTO people(first_name, last_name) VALUES (:firstName, :lastName)")
+                .sql("INSERT INTO people(first_name, last_name, service_id, shop_id) VALUES (:firstName, :lastName, :serviceId, :shopId)")
                 .dataSource(dataSource)
                 .build();
     }
 
     @Bean
-    public Step step1(JobRepository jobRepository,
+    public Step personImportStep(JobRepository jobRepository,
                       PlatformTransactionManager transactionManager) {
-        return new StepBuilder("step1", jobRepository).
+        return new StepBuilder("personImportStep", jobRepository).
                 <Person, Person>chunk(chunkSize, transactionManager)
                 .reader(reader())
                 .processor(processor())
@@ -79,4 +81,6 @@ public class SpringBatchConfiguration {
                 .end()
                 .build();
     }
+
+    // update job
 }
