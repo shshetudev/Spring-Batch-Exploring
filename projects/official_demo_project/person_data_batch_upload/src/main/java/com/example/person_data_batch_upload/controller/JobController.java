@@ -8,6 +8,7 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
 import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.repository.JobRestartException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,13 +21,15 @@ public class JobController {
     private final Job importPersonJob;
     private final Job updatePersonJob;
 
-    public JobController(JobLauncher jobLauncher, Job importPersonJob, Job updatePersonJob) {
+    public JobController(JobLauncher jobLauncher,
+                         @Qualifier("importUserJob") Job importPersonJob,
+                         @Qualifier("updateUserJob") Job updatePersonJob) {
         this.jobLauncher = jobLauncher;
         this.importPersonJob = importPersonJob;
         this.updatePersonJob = updatePersonJob;
     }
 
-    @PostMapping("/start")
+    @PostMapping("/import")
     public ResponseEntity<String> importPersons() throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
         JobParameters jobParameters = new JobParametersBuilder()
                 .addString("jobName", "importUserJob")
@@ -40,7 +43,7 @@ public class JobController {
     public ResponseEntity<String> updatePersons() throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
         JobParameters jobParameters = new JobParametersBuilder()
                 .addString("jobName", "updateUserJob")
-                .addLong("startsAt", System.currentTimeMillis())
+                .addLong("updatedAt", System.currentTimeMillis())
                 .toJobParameters();
         jobLauncher.run(updatePersonJob, jobParameters);
         return ResponseEntity.ok("Update job started");
