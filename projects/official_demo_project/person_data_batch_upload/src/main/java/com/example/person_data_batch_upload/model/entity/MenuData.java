@@ -4,12 +4,16 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Person {
-    private String firstName;
-    private String lastName;
-    private Integer serviceId;
+public class MenuData {
+    private String menuText;
+    private Integer serviceBudgetId;
     private Integer shopId;
+    private Long lastModifyDate;
+    private String menuImagesCloudData;
 }
