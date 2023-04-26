@@ -120,41 +120,36 @@ public class DataUploadBatchConfiguration {
     // todo: Send using @PostConstruct
     @Bean
     public JdbcCursorItemReader<MenuData> updateAndInsertSmallVolumeMenuDataReader() {
-        // todo: Check what if importUserJob is not run
+        // todo: Check what if importMenuDataJob is not run
 //        final String lastModifyDate = "2023-04-12 07:03:09.785452";
-        JobInstance importUserJobInstance = jobExplorer.getLastJobInstance("importUserJob");
-        JobInstance updateUserJobInstance = jobExplorer.getLastJobInstance("updateUserJob");
-        LocalDateTime importUserJobStartTime = jobExplorer.getJobExecution(importUserJobInstance.getInstanceId()).getStartTime();
+        JobInstance importMenuDataJobInstance = jobExplorer.getLastJobInstance("importMenuDataJob");
+        JobInstance updateMenuDataJobInstance = jobExplorer.getLastJobInstance("updateMenuDataJob");
+        // todo: It will throw null pointer exception if data is not imported yet
+        LocalDateTime importMenuDataJobStartTime = jobExplorer.getLastJobInstance("`importMenuDataJob`") == null
+        ? LocalDateTime.now():jobExplorer.getJobExecution(importMenuDataJobInstance.getInstanceId()).getStartTime();
 
-        log.info("importUserJobStartTime: {}", importUserJobStartTime);
-        log.info("updateUserJobInstance: {}", updateUserJobInstance);
+        log.info("importMenuDataJobStartTime: {}", importMenuDataJobStartTime);
+        log.info("updateMenuDataJobInstance: {}", updateMenuDataJobInstance);
 
-        String lastModifyDate = updateUserJobInstance == null
-                ? String.valueOf(jobExplorer.getJobExecution(jobExplorer.getLastJobInstance("importUserJob").getInstanceId()).getStartTime())
-                : String.valueOf(jobExplorer.getJobExecution(jobExplorer.getLastJobInstance("updateUserJob").getInstanceId()).getStartTime());
+        String lastModifyDate = updateMenuDataJobInstance == null
+                ? String.valueOf(importMenuDataJobStartTime)
+                : String.valueOf(jobExplorer.getJobExecution(jobExplorer.getLastJobInstance("updateMenuDataJob").getInstanceId()).getStartTime());
 
         log.info("Last modify date: {}", lastModifyDate);
         JdbcCursorItemReader<MenuData> reader = new JdbcCursorItemReader<>();
         reader.setDataSource(dataSource);
-        reader.setName("personUpdateReader");
-        // todo: startsAt of importUserJob, startsAt of updateUserJob
+        reader.setName("updateAndInsertSmallVolumeMenuDataReader");
+        // todo: startsAt of importMenuDataJob, startsAt of updateMenuDataJob
         reader.setSql(
-                String.format("SELECT " +
-                        "first_name, last_name, service_id, shop_id " +
-                        "from service_budget " +
-                        "where last_modify_date > '%s'", lastModifyDate)
+                String.format("""
+                        SELECT sb.menu_text,
+                               sb.service_budget_id,
+                               sb.shop_id,
+                               mi.menu_images_cloud_data
+                        from service_budget sb
+                                 left join menu_images mi on sb.service_id = mi.service_id and sb.shop_id = mi.shop_id
+                        where last_modify_date > '%s'""", lastModifyDate)
         );
-
-
-//        reader.setSql(
-//                "SELECT first_name, last_name, service_id, shop_id from service_budget " +
-//                "where last_modify_date > ?");
-//        reader.setPreparedStatementSetter(new ParameterizedPreparedStatementSetter<Person>() {
-//            @Override
-//            public void setValues(PreparedStatement ps, Person person) throws SQLException {
-//                ps.setString();
-//            }
-//        });
 
         reader.setRowMapper(menuDataRowMapper);
         reader.setFetchSize(chunkSize);
@@ -165,7 +160,7 @@ public class DataUploadBatchConfiguration {
     public JdbcBatchItemWriter<MenuData> personUpdateWriter() {
         return new JdbcBatchItemWriterBuilder<MenuData>()
                 .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
-                .sql("Update person SET first_name = :firstName, last_name=:lastName where shop_id=:shopId and service_id=:serviceId")
+                .sql("Update menu_data SET menu_text = :menuText, menu_images_cloud_data=:menuImagesCloudData where shop_id=:shopId and service_budget_id=:serviceBudgetId")
                 .dataSource(dataSource)
                 .build();
     }
@@ -198,10 +193,10 @@ public class DataUploadBatchConfiguration {
                 .build();
     }
 
-    @Bean(name = "personUpdateStep")
-    public Step personUpdateStep(JobRepository jobRepository,
-                                 PlatformTransactionManager transactionManager) {
-        return new StepBuilder("personUpdateStep", jobRepository).
+    @Bean(name = "menuDataUpdateStep")
+    public Step menuDataUpdateStep(JobRepository jobRepository,
+                                   PlatformTransactionManager transactionManager) {
+        return new StepBuilder("menuDataUpdateStep", jobRepository).
                 <MenuData, MenuData>chunk(chunkSize, transactionManager)
                 .reader(updateAndInsertSmallVolumeMenuDataReader()) // todo: remove null from here
                 .processor(menuDataImportProcessor())
@@ -215,7 +210,7 @@ public class DataUploadBatchConfiguration {
                                  @Qualifier("menuDataImportStep") Step menuDataImportStep,
                                  @Qualifier("shopDataImportStep") Step shopDataImportStep
                              ) {
-        return new JobBuilder("importUserJob", jobRepository)
+        return new JobBuilder("importMenuDataJob", jobRepository)
 
                 .incrementer(new RunIdIncrementer())
                 .start(shopDataImportStep)
@@ -224,11 +219,11 @@ public class DataUploadBatchConfiguration {
     }
 
     // update job
-    @Bean(name = "updateUserJob")
-    public Job updateUserJob(JobRepository jobRepository,
+    @Bean(name = "updateMenuDataJob")
+    public Job updateMenuDataJob(JobRepository jobRepository,
                              JobListener listener,
-                             @Qualifier(value = "personUpdateStep") Step step) {
-        return new JobBuilder("updateUserJob", jobRepository)
+                             @Qualifier(value = "menuDataUpdateStep") Step step) {
+        return new JobBuilder("updateMenuDataJob", jobRepository)
                 .incrementer(new RunIdIncrementer())
                 .listener(listener)
                 .flow(step)

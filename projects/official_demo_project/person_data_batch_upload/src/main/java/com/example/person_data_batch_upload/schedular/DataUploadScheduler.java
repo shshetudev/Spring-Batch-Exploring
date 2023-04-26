@@ -27,8 +27,8 @@ public class DataUploadScheduler {
     private final JobExplorer jobExplorer;
 
     public DataUploadScheduler(JobLauncher jobLauncher,
-                               @Qualifier("importUserJob") Job importPersonJob,
-                               @Qualifier("updateUserJob") Job updatePersonJob, JobExplorer jobExplorer) {
+                               @Qualifier("importMenuDataJob") Job importPersonJob,
+                               @Qualifier("updateMenuDataJob") Job updatePersonJob, JobExplorer jobExplorer) {
         this.jobLauncher = jobLauncher;
         this.importPersonJob = importPersonJob;
         this.updatePersonJob = updatePersonJob;
@@ -53,26 +53,27 @@ public class DataUploadScheduler {
         log.info("Running this dummy scheduler after every second");
     }
 
-    @Scheduled(cron = "16 22 * * * *")
-    public void scheduleUploadLargeVolumeMenuData() throws JobInstanceAlreadyCompleteException,
-            JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
-        JobParameters jobParameters = new JobParametersBuilder()
-                .addString("jobName", "importMenuDataJob")
-                .addLong("importedAt", System.currentTimeMillis())
-                .toJobParameters();
-        jobLauncher.run(importPersonJob, jobParameters);
-        log.info("............... Import Menu data Scheduler started .............");
-    }
-
-    @DependsOn("scheduleUploadUserData")
-    @Scheduled(fixedRate = 1800_000)
-    public void scheduleUpdateAndInsertSmallVolumeMenuData() throws JobInstanceAlreadyCompleteException,
-            JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
-        JobParameters jobParameters = new JobParametersBuilder()
-                .addString("jobName", "updateUserJob")
-                .addLong("updatedAt", System.currentTimeMillis())
-                .toJobParameters();
-        jobLauncher.run(updatePersonJob, jobParameters);
-        log.info("............... Update User Scheduler started .............");
-    }
+    // todo: fix the scheduler later
+//    @Scheduled(cron = "16 22 * * * *")
+//    public void scheduleUploadLargeVolumeMenuData() throws JobInstanceAlreadyCompleteException,
+//            JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
+//        JobParameters jobParameters = new JobParametersBuilder()
+//                .addString("jobName", "importMenuDataJob")
+//                .addLong("importedAt", System.currentTimeMillis())
+//                .toJobParameters();
+//        jobLauncher.run(importPersonJob, jobParameters);
+//        log.info("............... Import Menu data Scheduler started .............");
+//    }
+//
+//    @DependsOn("scheduleUploadUserData")
+//    @Scheduled(fixedRate = 1800_000)
+//    public void scheduleUpdateAndInsertSmallVolumeMenuData() throws JobInstanceAlreadyCompleteException,
+//            JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
+//        JobParameters jobParameters = new JobParametersBuilder()
+//                .addString("jobName", "updateMenuDataJob")
+//                .addLong("updatedAt", System.currentTimeMillis())
+//                .toJobParameters();
+//        jobLauncher.run(updatePersonJob, jobParameters);
+//        log.info("............... Update User Scheduler started .............");
+//    }
 }

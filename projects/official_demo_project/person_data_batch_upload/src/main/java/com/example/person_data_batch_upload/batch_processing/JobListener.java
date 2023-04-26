@@ -32,18 +32,21 @@ public class JobListener implements JobExecutionListener {
 
     @Override
     public void afterJob(JobExecution jobExecution) {
-        Long importUserJobInstanceId = jobExplorer.getLastJobInstance("importUserJob").getInstanceId();
-        LocalDateTime importUserJobStartTime = jobExplorer.getJobExecution(importUserJobInstanceId).getStartTime();
-        log.info("importUserJobStartTime: {}", importUserJobStartTime);
-//        Long updateUserJobInstanceId = jobExplorer.getLastJobInstance("updateUserJob").getInstanceId();
+        final String CHANGED_COLUMNS = "1";
+        Long importMenuDataJobInstanceId = jobExplorer.getLastJobInstance("importMenuDataJob").getInstanceId();
+        LocalDateTime importMenuDataJobStartTime = jobExplorer.getJobExecution(importMenuDataJobInstanceId).getStartTime();
+        log.info("importMenuDataJobStartTime: {}", importMenuDataJobStartTime);
+//        Long updateMenuDataJobInstanceId = jobExplorer.getLastJobInstance("updateMenuDataJob").getInstanceId();
         // Get the last startsAt parameter
-        // todo: Check will be done based on both importUserJobStartTime and updateUserJobStartTime
-//        LocalDateTime updateUserJobStartTime = jobExplorer.getJobExecution(updateUserJobInstanceId).getStartTime();
-//        log.info("updateUserJobStartTime: {}", updateUserJobStartTime);
+        // todo: Check will be done based on both importMenuDataJobStartTime and updateMenuDataJobStartTime
+//        LocalDateTime updateMenuDataJobStartTime = jobExplorer.getJobExecution(updateMenuDataJobInstanceId).getStartTime();
+//        log.info("updateMenuDataJobStartTime: {}", updateMenuDataJobStartTime);
 
         if (jobExecution.getStatus() == BatchStatus.COMPLETED) {
             log.info("!!! JOB FINISHED! Time to verify the results");
-            final String SEARCH_QUERY = "SELECT menu_text, service_budget_id, shop_id, last_modify_date, menu_images_cloud_data FROM menu_data";
+            final String SEARCH_QUERY = "SELECT md.menu_text, md.service_budget_id, md.shop_id, md.last_modify_date, md.menu_images_cloud_data " +
+                    "FROM menu_data md inner join service_budget sb on sb.shop_id=md.shop_id and sb.shop_id=md.service_budget_id " +
+                    "order by md.last_modify_date limit " + CHANGED_COLUMNS;
             jdbcTemplate.query(SEARCH_QUERY,
                     (rs, row) -> new MenuData(
                             rs.getString(1),

@@ -22,8 +22,8 @@ public class JobController {
     private final Job updatePersonJob;
 
     public JobController(JobLauncher jobLauncher,
-                         @Qualifier("importUserJob") Job importPersonJob,
-                         @Qualifier("updateUserJob") Job updatePersonJob) {
+                         @Qualifier("importMenuDataJob") Job importPersonJob,
+                         @Qualifier("updateMenuDataJob") Job updatePersonJob) {
         this.jobLauncher = jobLauncher;
         this.importPersonJob = importPersonJob;
         this.updatePersonJob = updatePersonJob;
@@ -32,7 +32,7 @@ public class JobController {
     @PostMapping("/import")
     public ResponseEntity<String> importPersons() throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
         JobParameters jobParameters = new JobParametersBuilder()
-                .addString("jobName", "importUserJob")
+                .addString("jobName", "importMenuDataJob")
                 .addLong("startsAt", System.currentTimeMillis())
                 .toJobParameters();
         jobLauncher.run(importPersonJob, jobParameters);
@@ -42,7 +42,7 @@ public class JobController {
     @PostMapping("/update")
     public ResponseEntity<String> updatePersons() throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
         JobParameters jobParameters = new JobParametersBuilder()
-                .addString("jobName", "updateUserJob")
+                .addString("jobName", "updateMenuDataJob")
                 .addLong("updatedAt", System.currentTimeMillis())
                 .toJobParameters();
         jobLauncher.run(updatePersonJob, jobParameters);
