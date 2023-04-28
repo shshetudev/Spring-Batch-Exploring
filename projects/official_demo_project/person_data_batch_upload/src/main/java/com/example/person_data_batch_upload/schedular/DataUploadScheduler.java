@@ -53,8 +53,8 @@ public class DataUploadScheduler {
         log.info("Running this dummy scheduler after every second");
     }
 
-    // todo: fix the scheduler later
-//    @Scheduled(cron = "16 22 * * * *")
+//     todo: Uncomment when required
+//    @Scheduled(cron = "16 22 * * 1 *")
 //    public void scheduleUploadLargeVolumeMenuData() throws JobInstanceAlreadyCompleteException,
 //            JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
 //        JobParameters jobParameters = new JobParametersBuilder()

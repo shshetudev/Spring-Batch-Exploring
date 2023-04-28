@@ -3,6 +3,11 @@ package com.example.person_data_batch_upload.batch_processing.config;
 import com.example.person_data_batch_upload.batch_processing.JobListener;
 import com.example.person_data_batch_upload.batch_processing.MenuDataItemProcessor;
 import com.example.person_data_batch_upload.batch_processing.ShopDataItemProcessor;
+import com.example.person_data_batch_upload.batch_processing.reader.MenuDataItemReader;
+import com.example.person_data_batch_upload.batch_processing.row_mapper.MenuDataRowMapper;
+import com.example.person_data_batch_upload.batch_processing.row_mapper.ShopDataRowMapper;
+import com.example.person_data_batch_upload.batch_processing.writer.MenuDataItemWriter;
+import com.example.person_data_batch_upload.batch_processing.writer.ShopDataItemWriter;
 import com.example.person_data_batch_upload.model.entity.MenuData;
 import com.example.person_data_batch_upload.model.entity.Shop;
 import lombok.Data;
@@ -16,6 +21,7 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
@@ -30,6 +36,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Configuration
 @EnableBatchProcessing
@@ -41,37 +48,16 @@ public class DataUploadBatchConfiguration {
     private final MenuDataRowMapper menuDataRowMapper;
     private final ShopDataRowMapper shopDataRowMapper;
     private final JobExplorer jobExplorer;
+    private final ExecutionContext executionContext;
+    private final MenuDataItemWriter menuDataItemWriter;
 
-//    @Value("#{jobParameters['importedAt']}")
-//    public String lastModifyDate;
 
+    @Value("${menu_data.chunk.size:10}")
+    private Integer menuDataChunkSize;
 
-    @Value("${chunk.size:10}")
-    private Integer chunkSize;
+    @Value("${shop_data.chunk.size:2}")
+    private Integer shopDataChunkSize;
 
-    // todo: Add shop exists or not and public or not step
-    @Bean(name = "menuDataImportReader")
-    public JdbcCursorItemReader<MenuData> menuDataImportReader() {
-
-        final String MENU_INFO_FROM_SERVICE_BUDGET_AND_MENU_IMAGES_TABLE = """
-                select sb.menu_text,
-                       sb.service_budget_id,
-                       sb.shop_id,
-                       mi.menu_images_cloud_data
-                from service_budget sb
-                         left join menu_images mi on
-                    (sb.service_id = mi.service_id and sb.shop_id = mi.shop_id)""";
-
-        JdbcCursorItemReader<MenuData> reader = new JdbcCursorItemReader<>();
-        reader.setDataSource(dataSource);
-        reader.setName("menuDataImportReader");
-        // collect data
-        reader.setSql(MENU_INFO_FROM_SERVICE_BUDGET_AND_MENU_IMAGES_TABLE);
-        reader.setRowMapper(menuDataRowMapper);
-        // same as setPageSize() method of EntityManagerFactory class
-        reader.setFetchSize(chunkSize);
-        return reader;
-    }
 
     @Bean(name = "shopDataReader")
     public JdbcCursorItemReader<Shop> shopDataItemReader() {
@@ -91,30 +77,76 @@ public class DataUploadBatchConfiguration {
         return reader;
     }
 
+    @Bean(name = "shopDataImportWriter")
+    public ItemWriter<Shop> shopDataImportWriter() {
+//        return new ItemWriter<>() {
+//            private StepExecution stepExecution;
+//
+//            @Override
+//            public void write(Chunk<? extends Shop> chunk) throws Exception {
+//                ExecutionContext context = this.stepExecution.getExecutionContext();
+//                context.put("shopId", chunk.getItems());
+//                log.info("Getting the shopId from context: {}", context.get("shopId"));
+//            }
+//        };
+        // todo: fix this line
+//        stepExecution.getExecutionContext().put("totalCount", 1);
+//        log.info("Total count: {}", stepExecution.getExecutionContext().get("totalCount"));
+//        return shops -> {
+//            for (Shop shop : shops) {
+//                System.out.println("Collected Shops: " + shop);
+//            }
+//        };
+
+        return new ShopDataItemWriter();
+    }
+
+    // todo: Add shop exists or not and public or not step
+    @Bean(name = "menuDataImportReader")
+    public JdbcCursorItemReader<MenuData> menuDataImportReader() {
+        log.info("In the menu data import reader:{}", (List<Shop>) executionContext.get("shops"));
+        final String MENU_INFO_FROM_SERVICE_BUDGET_AND_MENU_IMAGES_TABLE = """
+                select sb.menu_text,
+                       sb.service_budget_id,
+                       sb.shop_id,
+                       mi.menu_images_cloud_data
+                from service_budget sb
+                         left join menu_images mi on
+                    (sb.service_id = mi.service_id and sb.shop_id = mi.shop_id)
+                    where sb.shop_id='1'
+                    """;
+
+        JdbcCursorItemReader<MenuData> reader = new JdbcCursorItemReader<>();
+        reader.setDataSource(dataSource);
+        reader.setName("menuDataImportReader");
+        // collect data
+        reader.setSql(MENU_INFO_FROM_SERVICE_BUDGET_AND_MENU_IMAGES_TABLE);
+        reader.setRowMapper(menuDataRowMapper);
+        // same as setPageSize() method of EntityManagerFactory class
+        reader.setFetchSize(menuDataChunkSize);
+        return reader;
+//        return new MenuDataItemReader(dataSource, menuDataRowMapper, 1);
+//        return new MenuDataItemReader(dataSource, menuDataRowMapper);
+    }
+
 
     @Bean
     public ItemProcessor<MenuData, MenuData> menuDataImportProcessor() {
         return new MenuDataItemProcessor();
     }
 
-    @Bean(name = "menuDataImportWriter")
-    public JdbcBatchItemWriter<MenuData> menuDataImportWriter() {
-        final String INSERT_SQL = "INSERT INTO menu_data(menu_text, service_budget_id, shop_id, last_modify_date, menu_images_cloud_data) VALUES (:menuText, :serviceBudgetId, :shopId, :lastModifyDate, :menuImagesCloudData)";
-        return new JdbcBatchItemWriterBuilder<MenuData>()
-                .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
-                .sql(INSERT_SQL)
-                .dataSource(dataSource)
-                .build();
-    }
-
-    @Bean(name = "shopDataImportWriter")
-    public ItemWriter<Shop> shopDataImportWriter() {
-        return shops -> {
-            for (Shop shop : shops) {
-                System.out.println(shop);
-            }
-        };
-    }
+//    @Bean(name = "menuDataImportWriter")
+//    public JdbcBatchItemWriter<MenuData> menuDataImportWriter() {
+//        // todo: Uncomment it after usage
+//        final String INSERT_SQL = "INSERT INTO menu_data(menu_text, service_budget_id, shop_id, last_modify_date, menu_images_cloud_data) VALUES (:menuText, :serviceBudgetId, :shopId, :lastModifyDate, :menuImagesCloudData)";
+//        return new JdbcBatchItemWriterBuilder<MenuData>()
+//                .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
+//                .sql(INSERT_SQL)
+//                .dataSource(dataSource)
+//                .build();
+//
+//        // todo: Call the API here
+//    }
 
 
     // todo: Send using @PostConstruct
@@ -126,7 +158,7 @@ public class DataUploadBatchConfiguration {
         JobInstance updateMenuDataJobInstance = jobExplorer.getLastJobInstance("updateMenuDataJob");
         // todo: It will throw null pointer exception if data is not imported yet
         LocalDateTime importMenuDataJobStartTime = jobExplorer.getLastJobInstance("`importMenuDataJob`") == null
-        ? LocalDateTime.now():jobExplorer.getJobExecution(importMenuDataJobInstance.getInstanceId()).getStartTime();
+                ? LocalDateTime.now() : jobExplorer.getJobExecution(importMenuDataJobInstance.getInstanceId()).getStartTime();
 
         log.info("importMenuDataJobStartTime: {}", importMenuDataJobStartTime);
         log.info("updateMenuDataJobInstance: {}", updateMenuDataJobInstance);
@@ -152,7 +184,7 @@ public class DataUploadBatchConfiguration {
         );
 
         reader.setRowMapper(menuDataRowMapper);
-        reader.setFetchSize(chunkSize);
+        reader.setFetchSize(menuDataChunkSize);
         return reader;
     }
 
@@ -174,7 +206,7 @@ public class DataUploadBatchConfiguration {
     public Step shopDataImportStep(JobRepository jobRepository,
                                    PlatformTransactionManager transactionManager) {
         return new StepBuilder("shopImportStep", jobRepository).
-                <Shop, Shop> chunk(chunkSize, transactionManager)
+                <Shop, Shop>chunk(shopDataChunkSize, transactionManager)
                 .reader(shopDataItemReader())
                 .processor(shopDataImportProcessor())
                 .writer(shopDataImportWriter())
@@ -186,10 +218,10 @@ public class DataUploadBatchConfiguration {
     public Step menuDataImportStep(JobRepository jobRepository,
                                    PlatformTransactionManager transactionManager) {
         return new StepBuilder("menuDataImportStep", jobRepository).
-                <MenuData, MenuData>chunk(chunkSize, transactionManager)
+                <MenuData, MenuData>chunk(menuDataChunkSize, transactionManager)
                 .reader(menuDataImportReader())
                 .processor(menuDataImportProcessor())
-                .writer(menuDataImportWriter())
+                .writer(menuDataItemWriter)
                 .build();
     }
 
@@ -197,7 +229,7 @@ public class DataUploadBatchConfiguration {
     public Step menuDataUpdateStep(JobRepository jobRepository,
                                    PlatformTransactionManager transactionManager) {
         return new StepBuilder("menuDataUpdateStep", jobRepository).
-                <MenuData, MenuData>chunk(chunkSize, transactionManager)
+                <MenuData, MenuData>chunk(menuDataChunkSize, transactionManager)
                 .reader(updateAndInsertSmallVolumeMenuDataReader()) // todo: remove null from here
                 .processor(menuDataImportProcessor())
                 .writer(personUpdateWriter())
@@ -209,7 +241,7 @@ public class DataUploadBatchConfiguration {
                                  JobListener listener,
                                  @Qualifier("menuDataImportStep") Step menuDataImportStep,
                                  @Qualifier("shopDataImportStep") Step shopDataImportStep
-                             ) {
+    ) {
         return new JobBuilder("importMenuDataJob", jobRepository)
 
                 .incrementer(new RunIdIncrementer())
@@ -221,8 +253,8 @@ public class DataUploadBatchConfiguration {
     // update job
     @Bean(name = "updateMenuDataJob")
     public Job updateMenuDataJob(JobRepository jobRepository,
-                             JobListener listener,
-                             @Qualifier(value = "menuDataUpdateStep") Step step) {
+                                 JobListener listener,
+                                 @Qualifier(value = "menuDataUpdateStep") Step step) {
         return new JobBuilder("updateMenuDataJob", jobRepository)
                 .incrementer(new RunIdIncrementer())
                 .listener(listener)
@@ -230,12 +262,4 @@ public class DataUploadBatchConfiguration {
                 .end()
                 .build();
     }
-
-    // todo: Fix the dummy step
-//    @Bean
-//    public Step taskletStep() {
-//        return new StepBuilder.get("taskletStep")
-//                .tasklet(tasklet())
-//                .build();
-//    }
 }

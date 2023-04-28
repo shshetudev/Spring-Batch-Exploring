@@ -14,8 +14,6 @@ public class ShopDataItemProcessor implements ItemProcessor<Shop, Shop> {
     public Shop process(final Shop shop) throws Exception {
         // todo: Add processing logic
 
-        final Shop transformedShopData = new Shop(shop.getShopId());
-        log.info("Converting (" + shop + ") into (" + transformedShopData + ")");
-        return transformedShopData;
+        return new Shop(shop.getShopId());
     }
 }

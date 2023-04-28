@@ -1,4 +1,4 @@
-package com.example.person_data_batch_upload.batch_processing.config;
+package com.example.person_data_batch_upload.batch_processing.row_mapper;
 
 import com.example.person_data_batch_upload.model.entity.MenuData;
 import com.example.person_data_batch_upload.model.entity.Shop;
