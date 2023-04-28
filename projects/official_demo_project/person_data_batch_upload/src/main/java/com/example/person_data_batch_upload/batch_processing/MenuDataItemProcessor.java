@@ -13,13 +13,11 @@ public class MenuDataItemProcessor implements ItemProcessor<MenuData, MenuData> 
     public MenuData process(final MenuData menuData) throws Exception {
         // todo: Add processing logic
 
-        final MenuData transformedMenuData = new MenuData(
+        return new MenuData(
                 menuData.getMenuText(),
                 menuData.getServiceBudgetId(),
                 menuData.getShopId(),
                 menuData.getLastModifyDate(),
                 menuData.getMenuImagesCloudData());
-        log.info("Converting (" + menuData + ") into (" + transformedMenuData + ")");
-        return transformedMenuData;
     }
 }

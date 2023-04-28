@@ -14,6 +14,7 @@ public class MenuData {
     private String menuText;
     private Integer serviceBudgetId;
     private Integer shopId;
+
     private Long lastModifyDate;
     private String menuImagesCloudData;
 }
